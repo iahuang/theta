@@ -38,7 +38,7 @@ input_generator = (
 data = theta.compile_runtime_data(
     f=test_function,
     function_inputs=input_generator,
-    min_iters=1000,
+    min_iters=200,
 )
 
 # Print correlation values (higher == more correlated).
