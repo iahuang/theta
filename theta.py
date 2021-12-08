@@ -204,8 +204,6 @@ def compile_runtime_data(
             exec_time=avg_exec_time
         ))
 
-        print(f_input)
-
     return runtime_data
 
 
@@ -248,11 +246,59 @@ def _best_fit_c(f: RuntimeData, g: _ExprEvaluable) -> tuple[float, float]:
     return (c, _mse(f, g, c))
 
 
-def bigO_correlation(data: RuntimeData, complexity_func: _ExprEvaluable):
+def bigO_correlation(data: RuntimeData, complexity_func: _ExprEvaluable) -> float:
     _, mse = _best_fit_c(data, complexity_func)
 
     return math.log(1/mse)
 
+def guess_time_complexity_one_var(var: InputSizeVariable, data: RuntimeData) -> tuple[str, float]:
+    """
+    Compute a best guess for the time complexity of a function with a single input size variable
+    based on a predefined list of common time complexity functions.
+
+    Return a tuple with the the function as a string (e.g. "O(n^2)") and its corresponding
+    correlation value.
+    """
+
+    FUNCTIONS: list[tuple[str, _ExprEvaluable]] = [
+        ("O(1)", 1),
+        ("O($1)", var),
+        ("O($1^2)", var**2),
+        ("O($1^3)", var**3),
+        ("O(log($1))", Log(var)),
+        ("O($1*log($1))", var*Log(var)),
+        ("O(log(log($1)))", Log(Log(var))),
+    ]
+
+    best = max(FUNCTIONS, key=lambda t: bigO_correlation(data, t[1]))
+
+    return (best[0].replace("$1", var.name), bigO_correlation(data, best[1]))
+
+def guess_time_complexity_two_vars(var1: InputSizeVariable, var2: InputSizeVariable, data: RuntimeData) -> tuple[str, float]:
+    """
+    Compute a best guess for the time complexity of a function with two input size variables
+    based on a predefined list of common time complexity functions.
+
+    Return a tuple with the the function as a string (e.g. "O(n*m)") and its corresponding
+    correlation value.
+    """
+
+    FUNCTIONS: list[tuple[str, _ExprEvaluable]] = [
+        ("O(1)", 1),
+        ("O($1)", var1),
+        ("O($2)", var2),
+        ("O($1+$2)", var1 + var2),
+        ("O($1*$2)", var1*var2),
+        ("O($1($1 + $2))", var1*(var1 + var2)),
+        ("O($2($1 + $2))", var2*(var1 + var2))
+    ]
+
+    best = max(FUNCTIONS, key=lambda t: bigO_correlation(data, t[1]))
+
+    return (
+        best[0].replace("$1", var1.name).replace("$2", var2.name),
+        bigO_correlation(data, best[1])
+    )
 
 if __name__ == "__main__":
     N = InputSizeVariable("n")
@@ -286,7 +332,5 @@ if __name__ == "__main__":
         min_iters=200,
     )
 
-    print("O(n)     ", bigO_correlation(data, N))
-    print("O(m)     ", bigO_correlation(data, M))
-    print("O(nm)    ", bigO_correlation(data, N*M))
-    print("O(nlogm) ", bigO_correlation(data, N*Log(M)))
+    guess = guess_time_complexity_two_vars(N, M, data)
+    print("Best guess: {} (correlation={:3f})".format(guess[0], guess[1]))
