@@ -22,13 +22,13 @@ class InputSizeVariable:
 
     def __sub__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "-")
-    
+
     def __mul__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "*")
-    
+
     def __div__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "/")
-    
+
     def __pow__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "**")
 
@@ -48,13 +48,13 @@ class _Expression:
 
     def __sub__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "-")
-    
+
     def __mul__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "*")
-    
+
     def __div__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "/")
-    
+
     def __pow__(self, other: "_ExprEvaluable") -> "_Expression":
         return _ExprBinaryOp(self, other, "**")
 
@@ -69,14 +69,17 @@ class _ExprBinaryOp(_Expression):
         self.b = b
         self.op = op
 
+
 class _ExprLog(_Expression):
     x: "_ExprEvaluable"
 
     def __init__(self, x: "_ExprEvaluable"):
         self.x = x
 
+
 def Log(x: "_ExprEvaluable"):
     return _ExprLog(x)
+
 
 _ExprEvaluable = Union[_Expression, InputSizeVariable, float, int]
 
@@ -87,7 +90,7 @@ def _evaluate(node: _ExprEvaluable, var_values: dict[InputSizeVariable, int]) ->
             raise NameError("Variable '{}' is not defined".format(node.name))
 
         return float(var_values[node])
-    
+
     elif isinstance(node, _ExprLog):
         return math.log(_evaluate(node.x, var_values))
 
@@ -171,6 +174,7 @@ def compile_runtime_data(
     for f_input in function_inputs:
         total_iters = min_iters
         total_time = 0
+
         def _run_func():
             f(*f_input.args)
 
@@ -200,6 +204,8 @@ def compile_runtime_data(
             exec_time=avg_exec_time
         ))
 
+        print(f_input)
+
     return runtime_data
 
 
@@ -212,68 +218,41 @@ def _mse(f: RuntimeData, g: _ExprEvaluable, c: float) -> float:
 
     return sum_sq_err / f.size()
 
-def _regress_c(f: RuntimeData, g: _ExprEvaluable) -> tuple[float, float]:
+
+def _best_fit_c(f: RuntimeData, g: _ExprEvaluable) -> tuple[float, float]:
     """
     We define f(a,b,c...) in O(g(a,b,c,...)) as there existing some n > 0 and c > 0 such that
     for all a,b,c,... > 0, c*g(a,b,c,...) > f(a,b,c,...) whenever a,b,c,... > n
 
-    The goal of this function is to fit a value for "c" and return a MSE loss for "g"
-    to the time complexity function "f" represented by plotted runtime data points.
+    This function computes the minimum of L(c), L being a MSE loss function with c as an argument,
+    computed as [(y1-cg(x1))^2 + (y2-cg(x2))^2 + ... + (yn-cg(xn))^2](1/n)
+    by taking its derivative and solving for its x-intercept.
 
     Return the tuple (c, MSE)
     """
-    c = 0
 
-    # Find an initial estimate for c based on approximating the limit of
-    # f(a,b,c,...) / g(a,b,c,...) as the vector <a,b,c,...> approaches infinity.
+    # I did the math on a piece of notebook paper, trust that it works
 
-    # estimate the limit of f/g by sampling the "furthest" out point from zero.
-    max_dist = 0.0
-    limit = 0.0
+    b = -sum(
+        point.exec_time
+        for point in f.get_points()
+    )
 
-    for point in f.get_points():
-        magnitude = sum(
-            component*component for component in point.input_sizes.values())
+    m = sum(
+        _evaluate(g, point.input_sizes)
+        for point in f.get_points()
+    )
 
-        if magnitude > max_dist:
-            limit = point.exec_time / _evaluate(g, point.input_sizes)
-            max_dist = magnitude
+    c = -b/m
 
-    c = limit
-    mse = 0.0
+    return (c, _mse(f, g, c))
 
-    # estimate a value for epsilon based on the magnitude of our estimate for c.
-    _m = round(math.log10(c))
-    EPSILON = math.pow(10, _m-2)
-    ITERS = 200
-
-    # continuously try values of c +/- epsilon to minimize MSE. This method is inefficient, but
-    # should work.
-
-    for _ in range(ITERS):
-        loss_c_plus = _mse(f, g, c+EPSILON)
-        loss_c_minus = _mse(f, g, c-EPSILON)
-
-        mse = min(loss_c_plus, loss_c_minus)
-
-        if loss_c_minus < loss_c_plus:
-            c -= EPSILON
-        elif loss_c_plus < loss_c_minus:
-            c += EPSILON
-        else:
-            break
-            
-        # print({
-        #     "c": c,
-        #     "loss": mse
-        # })
-
-    return (c, mse)
 
 def bigO_correlation(data: RuntimeData, complexity_func: _ExprEvaluable):
-    _, mse = _regress_c(data, complexity_func)
+    _, mse = _best_fit_c(data, complexity_func)
 
     return math.log(1/mse)
+
 
 if __name__ == "__main__":
     N = InputSizeVariable("n")
@@ -290,14 +269,15 @@ if __name__ == "__main__":
 
     input_generator = (
         FunctionInput(
-            args=[[random.randint(0, 10) for _ in range(i1)], [random.randint(0, 10) for _ in range(i2)]],
+            args=[[random.randint(0, 10) for _ in range(i1)], [
+                random.randint(0, 10) for _ in range(i2)]],
             input_sizes={
                 N: i1,
                 M: i2
             }
         )
-        for i1 in [5, 10, 20, 40, 80, 160, 320, 640]
-        for i2 in [5, 10, 20, 40, 80, 160, 320, 640]
+        for i1 in [20, 40, 80, 160, 320, 640]
+        for i2 in [20, 40, 80, 160, 320, 640]
     )
 
     data = compile_runtime_data(
@@ -310,4 +290,3 @@ if __name__ == "__main__":
     print("O(m)     ", bigO_correlation(data, M))
     print("O(nm)    ", bigO_correlation(data, N*M))
     print("O(nlogm) ", bigO_correlation(data, N*Log(M)))
-    
