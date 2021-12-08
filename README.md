@@ -47,6 +47,11 @@ print("O(n)     ", theta.bigO_correlation(data, N)) # You can construct function
 print("O(m)     ", theta.bigO_correlation(data, M))
 print("O(nm)    ", theta.bigO_correlation(data, N*M))
 print("O(nlogm) ", theta.bigO_correlation(data, N*theta.Log(M)))
+
+# Alternatively, let Theta guess an time complexity function from a predefined list of common
+# functions
+guess = theta.guess_time_complexity_two_vars(N, M, data)
+print("Best guess: {} (correlation={})".format(guess[0], guess[1]))
 ```
 ### Example Output
 ```
@@ -54,5 +59,6 @@ O(n)      12.289116852356175
 O(m)      12.285565621119934
 O(nm)     21.331979668626328
 O(nlogm)  12.91796806188527
+Best guess: O(n*m) (correlation=21.331979668626328)
 ```
 Notice here that `O(nm)` has by far the highest correlation value.
