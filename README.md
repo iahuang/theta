@@ -1,5 +1,5 @@
 # theta
-A time complexity analysis library for Python.
+A time complexity analysis library written in Python. Supports multiple variables and arbitrary time complexity functions.
 
 ## Example
 ```python
