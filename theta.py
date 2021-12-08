@@ -169,7 +169,6 @@ def compile_runtime_data(
     runtime_data = RuntimeData()
 
     for f_input in function_inputs:
-        print(f_input)
         total_iters = min_iters
         total_time = 0
         def _run_func():
@@ -297,14 +296,14 @@ if __name__ == "__main__":
                 M: i2
             }
         )
-        for i1 in [5, 10, 15, 20, 30]
-        for i2 in [5, 10, 15, 20, 30]
+        for i1 in [5, 10, 20, 40, 80, 160, 320, 640]
+        for i2 in [5, 10, 20, 40, 80, 160, 320, 640]
     )
 
     data = compile_runtime_data(
         f=test_function,
         function_inputs=input_generator,
-        min_iters=1000,
+        min_iters=200,
     )
 
     print("O(n)     ", bigO_correlation(data, N))

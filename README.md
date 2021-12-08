@@ -30,8 +30,8 @@ input_generator = (
             M: i2
         }
     )
-    for i1 in [5, 10, 15, 20, 30]
-    for i2 in [5, 10, 15, 20, 30]
+    for i1 in [5, 10, 20, 40, 80, 160, 320, 640]
+    for i2 in [5, 10, 20, 40, 80, 160, 320, 640]
 )
 
 # Benchmark our data
@@ -50,8 +50,9 @@ print("O(nlogm) ", theta.bigO_correlation(data, N*theta.Log(M)))
 ```
 ### Example Output
 ```
-O(n)      24.038118866627283
-O(m)      23.94367484916167
-O(nm)     29.02337995301113
-O(nlogm)  25.22909794002936
+O(n)      12.289116852356175
+O(m)      12.285565621119934
+O(nm)     21.331979668626328
+O(nlogm)  12.91796806188527
 ```
+Notice here that `O(nm)` has by far the highest correlation value.
